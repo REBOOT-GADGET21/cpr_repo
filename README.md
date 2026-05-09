@@ -1,6 +1,6 @@
-# CPR Repository
+# 🤢 CPR Repository
 
-## Repository Structure
+## ☠ Repository 구조
 
 ```text
 cpr_repo/
@@ -16,17 +16,17 @@ cpr_repo/
 
 ---
 
-# rppg_ws Usage
+# 🤢 rppg_ws Usage
 
 `rppg_ws`는 실시간 rPPG 및 UI 코드입니다.
 
-GitHub에는 용량 문제로 아래 폴더가 포함되어 있지 않습니다.
+GitHub에는 용량 문제로 아래 폴더가 포함 X
 
 - dataset/
 - log/
 - runs/
 
-위 폴더들은 팀 Notion에서 다운로드 후 `rppg_ws/` 내부에 위치시켜야 합니다.
+위 폴더들은 팀 Notion에서 다운로드 후 `rppg_ws/` 내부에 위치
 
 예시:
 
@@ -39,26 +39,29 @@ rppg_ws/
 
 ---
 
-# cpr_ws Usage (ROS2 Workspace)
+# 🤢 cpr_ws Usage (ROS2 워크스페이스)
 
-`cpr_ws`는 ROS2 workspace입니다.
+`cpr_ws`는 ROS2 workspace
 
-## Build
+## ☠ Build
 
 ```bash
+# 해당 폴더에 들어가서
 cd cpr_repo/cpr_ws
+# 빌드 해야함
 colcon build
 ```
 
-## Source
+## ☠ Source
 
 ```bash
+# 해당 명령어를 사용하여 업데이트
 source install/setup.bash
 ```
 
 ---
 
-# Example
+# ☠ 예시
 
 ```bash
 git clone https://github.com/REBOOT-GADGET21/cpr_repo.git
