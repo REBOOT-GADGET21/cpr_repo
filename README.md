@@ -1,6 +1,6 @@
 # 🤢 CPR Repository
 
-## ☠ Repository 구조
+## 💩 Repository 구조
 
 ```text
 cpr_repo/
@@ -43,7 +43,7 @@ rppg_ws/
 
 `cpr_ws`는 ROS2 workspace
 
-## ☠ Build
+## 💩 Build
 
 ```bash
 # 해당 폴더에 들어가서
@@ -52,7 +52,7 @@ cd cpr_repo/cpr_ws
 colcon build
 ```
 
-## ☠ Source
+## 💩 Source
 
 ```bash
 # 해당 명령어를 사용하여 업데이트
@@ -61,7 +61,7 @@ source install/setup.bash
 
 ---
 
-# ☠ 예시
+# 💩 예시
 
 ```bash
 git clone https://github.com/REBOOT-GADGET21/cpr_repo.git
