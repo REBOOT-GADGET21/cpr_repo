@@ -1,0 +1,7 @@
+__pycache__/
+runs/
+log/
+dataset/
+*.pth
+*.pickle
+*.pdf
