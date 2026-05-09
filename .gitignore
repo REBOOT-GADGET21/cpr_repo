@@ -32,3 +32,8 @@ venv/
 
 # System
 .DS_Store
+
+# ros2 패키지의(cpr_ws) build, install, log는 git에서 제외
+cpr_ws/build/
+cpr _ws/install/
+cpr_ws/log/
