@@ -6,7 +6,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 
-from std_msgs.msg import String, Float32, Int32, Bool
+from std_msgs.msg import String, Float32, Int32, Bool, Float32MultiArray
 from sensor_msgs.msg import Image
 
 from PyQt5.QtCore import Qt, QTimer
@@ -59,6 +59,7 @@ class CPRUINode(Node):
         self.motor_count = 0
         self.motor_bpm = 0.0
         self.motor_time = 0.0
+        self.motor_depth_cm = 0.0
         self.motor_current_a = 0.0
         self.motor_state = "IDLE"
 
@@ -70,9 +71,8 @@ class CPRUINode(Node):
         self.create_subscription(Int32, "/motor_absolute_position", self.cb_motor_abs_pos, 10)
         self.create_subscription(Int32, "/motor_contact_position", self.cb_motor_contact_pos, 10)
         self.create_subscription(Int32, "/motor_target_position", self.cb_motor_target_pos, 10)
-        self.create_subscription(Int32, "/motor_compression_count", self.cb_motor_count, 10)
-        self.create_subscription(Float32, "/motor_compression_bpm", self.cb_motor_bpm, 10)
-        self.create_subscription(Float32, "/motor_compression_time", self.cb_motor_time, 10)
+        # 모터의 값을 묶어서 받는 토픽/ 압박 횟수, bpm, 시간, 깊이를 한번에 받음
+        self.create_subscription(Float32MultiArray, "/motor_compression_status", self.cb_motor_compression_status, 10)
         self.create_subscription(Float32, "/motor_current_a", self.cb_motor_current_a, 10)
         self.create_subscription(String, "/motor_state", self.cb_motor_state, 10)
 
@@ -162,14 +162,16 @@ class CPRUINode(Node):
     def cb_motor_target_pos(self, msg):
         self.motor_target_pos = msg.data
 
-    def cb_motor_count(self, msg):
-        self.motor_count = msg.data
-
-    def cb_motor_bpm(self, msg):
-        self.motor_bpm = msg.data
-
-    def cb_motor_time(self, msg):
-        self.motor_time = msg.data
+    def cb_motor_compression_status(self, msg):
+        values = list(msg.data)
+        if len(values) >= 1:
+            self.motor_count = int(values[0])
+        if len(values) >= 2:
+            self.motor_bpm = float(values[1])
+        if len(values) >= 3:
+            self.motor_time = float(values[2])
+        if len(values) >= 4:
+            self.motor_depth_cm = float(values[3])
 
     def cb_motor_current_a(self, msg):
         self.motor_current_a = msg.data
@@ -449,15 +451,12 @@ class MonitorPage(QWidget):
         minutes = int(n.motor_time // 60)
         seconds = int(n.motor_time % 60)
 
-        self.lbl_time.setText(f"진행 시간: {minutes:02d}:{seconds:02d}")
-        self.lbl_bpm.setText(f"압박 속도: {n.motor_bpm:.1f} BPM")
-        self.lbl_count.setText(f"압박 횟수: {n.motor_count}")
+        self.lbl_time.setText(f"압박 시간: {minutes:02d}:{seconds:02d}")
+        self.lbl_bpm.setText(f"BPM: {n.motor_bpm:05.1f}")
+        self.lbl_count.setText(f"압박 횟수: {n.motor_count:02d}")
         self.lbl_motor_state.setText(f"모터 상태: {n.motor_state}")
 
-        # 현재 토픽상 실제 압박 깊이 cm 값은 없음.
-        # 임시로 target/contact/abs position 차이를 표시.
-        depth_raw = abs(n.motor_target_pos - n.motor_contact_pos)
-        self.lbl_depth.setText(f"압박 깊이: raw {depth_raw}")
+        self.lbl_depth.setText(f"압박 깊이: {n.motor_depth_cm:.1f} cm")
 
         recoil_text = "WARNING" if n.loadcell_warning else "GOOD"
         self.lbl_recoil.setText(f"최대 이완/편심: {recoil_text}")
