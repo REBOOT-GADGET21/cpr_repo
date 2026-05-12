@@ -219,12 +219,12 @@ def reciprocating_motion(motor, ros, start_pos, end_pos, depth_cm):
     last_current_read_time = 0.0
     current_a = 0.0
 
-    STATUS_PUBLISH_PERIOD_S = 0.05
-    last_status_publish_time = 0.0
-
     # 처음에는 압박 방향, 즉 end_pos 방향으로 이동
     target_pos = end_pos
     direction = "FORWARD"
+
+    # 압박 1회 동안의 최대 깊이
+    max_depth_cm_in_cycle = 0.0
 
     # 첫 번째 왕복 로그 출력
     print(f"\n========== 왕복 {ros.compression_count + 1}/{cfg.REPEAT_COUNT} ==========")
@@ -255,10 +255,13 @@ def reciprocating_motion(motor, ros, start_pos, end_pos, depth_cm):
 
         ros.publish_absolute_position(current_pos)
 
+        # 현재 깊이는 계산만 하고, 토픽으로 실시간 발행하지 않음
         depth_now_cm = position_units_to_cm(abs(current_pos - start_pos))
-        if now_loop - last_status_publish_time >= STATUS_PUBLISH_PERIOD_S:
-            ros.publish_compression_status(depth_cm=depth_now_cm)
-            last_status_publish_time = now_loop
+
+        # 압박 방향에서만 이번 압박의 최대 깊이 저장
+        if direction == "FORWARD":
+            if depth_now_cm > max_depth_cm_in_cycle:
+                max_depth_cm_in_cycle = depth_now_cm
 
         error = abs(target_pos - current_pos)
 
@@ -291,7 +294,7 @@ def reciprocating_motion(motor, ros, start_pos, end_pos, depth_cm):
 
                 ros.update_compression_count(
                     bpm=avg_bpm,
-                    depth_cm=depth_now_cm
+                    depth_cm=max_depth_cm_in_cycle
                 )
 
                 if now - last_current_read_time >= CURRENT_READ_PERIOD_S:
@@ -333,6 +336,8 @@ def reciprocating_motion(motor, ros, start_pos, end_pos, depth_cm):
 
                 target_pos = end_pos
                 direction = "FORWARD"
+
+                max_depth_cm_in_cycle = 0.0
 
                 print(f"\n========== 왕복 {next_cycle}/{cfg.REPEAT_COUNT} ==========")
 

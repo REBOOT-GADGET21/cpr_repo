@@ -12,7 +12,7 @@ INITIAL_MOVE_RPM = 300
 SEARCH_RPM = 200
 
 # 왕복 속도 (rpm) // 목표 압박 bpm: 117bpm -> 모터는 2106rpm (1bpm = 18rpm)
-RECIP_RPM = 2800 #[rpm]
+RECIP_RPM = 3000 #[rpm]
 
 # 접촉 힘 기준
 CONTACT_FORCE_N = 3.0
@@ -45,7 +45,7 @@ THEORY_MAX_ALLOWED_CYCLE_DT = 60.0 / MIN_ALLOWED_BPM  # 약 0.577 s
 # 너무 빠른 압박 방지: 0.548초 전에는 count 처리하지 않음
 # 너무 느린 압박 방지: 0.570초가 지나면 더 기다리지 않음
 MIN_ALLOWED_CYCLE_DT = 0.548
-MAX_ALLOWED_CYCLE_DT = 0.560
+MAX_ALLOWED_CYCLE_DT = 0.555
 
 # ============================================================
 # 로그 설정
