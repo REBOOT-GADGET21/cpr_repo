@@ -119,18 +119,18 @@ class ConsciousnessDetectorNode(Node):
             right_ear = compute_ear(face_landmarks.landmark, RIGHT_EYE_LANDMARK, w, h)
             ear = (left_ear + right_ear) / 2.0
 
-            cv2.putText(image, f"EAR: {ear:.3f}", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 0, 0), 3)
+            # cv2.putText(image, f"EAR: {ear:.3f}", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 0, 0), 3)
 
             # 랜드마크 시각화
-            draw_landmark_group(image, face_landmarks.landmark, LEFT_EYE_LANDMARK,  w, h, (0, 0, 255), 2)
-            draw_landmark_group(image, face_landmarks.landmark, RIGHT_EYE_LANDMARK, w, h, (0, 0, 255), 2)
-            draw_landmark_group(image, face_landmarks.landmark, MOTION_LANDMARKS,   w, h, (255, 0, 255), 3)
+            draw_landmark_group(image, face_landmarks.landmark, LEFT_EYE_LANDMARK,  w, h, (0, 0, 255), 1)
+            draw_landmark_group(image, face_landmarks.landmark, RIGHT_EYE_LANDMARK, w, h, (0, 0, 255), 1)
+            draw_landmark_group(image, face_landmarks.landmark, MOTION_LANDMARKS,   w, h, (255, 0, 255), 2)
 
             # ==============================
             # 상태 머신
             # ==============================
             if self.state == STATE_WAIT_OPEN:
-                render_wait_open(image, ear)
+                # render_wait_open(image, ear)
                 if ear >= ABS_OPEN_EAR:
                     self.ear_open_samples.clear()
                     self.motion_points_history.clear()
@@ -140,7 +140,7 @@ class ConsciousnessDetectorNode(Node):
 
             elif self.state == STATE_CALIBRATING:
                 self.ear_open_samples.append(ear)
-                cv2.putText(image, "CALIBRATING...", (30, 90), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 3)
+                cv2.putText(image, "CALIBRATING...", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 1)
 
                 current_points = get_motion_points(face_landmarks.landmark, MOTION_LANDMARKS, w, h)
                 self.motion_points_history.append(current_points.copy())
@@ -258,21 +258,21 @@ class ConsciousnessDetectorNode(Node):
                 self.pub_final.publish(msg_final)
 
                 # 화면 표시
-                render_running(image, eye_state_text, closed_duration,
-                               blink_active, motion_response, final_response,
-                               motion_score_raw, self.motion_score_ema)
+                # render_running(image, eye_state_text, closed_duration,
+                            #    blink_active, motion_response, final_response,
+                            #    motion_score_raw, self.motion_score_ema)
 
         else:
             # 얼굴 없음
-            cv2.putText(image, "NO FACE", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
+            # cv2.putText(image, "NO FACE", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
             self.motion_points_history.clear()
             self.motion_start_time = None
             self.motion_score_ema  = 0.0
 
         # EAR 화면 표시/ UI에 대신 뜨도록 해서 주석처리
         # cv2.imshow(WINDOW_NAME, image)
-        # if cv2.waitKey(1) & 0xFF == 27:
-        #     self.destroy_node()
+        if cv2.waitKey(1) & 0xFF == 27:
+            self.destroy_node()
         self.pub_frame.publish(self.make_image_msg(image))
 
     def make_image_msg(self, image):

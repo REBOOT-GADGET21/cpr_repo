@@ -427,7 +427,7 @@ class MonitorPage(QWidget):
         """2분 EAR → 30초 rPPG → 반복."""
         elapsed = time.time() - self.mode_start_time
 
-        if self.current_mode == MODE_EAR and elapsed >= 3.0:
+        if self.current_mode == MODE_EAR and elapsed >= 120.0:
             self.current_mode = MODE_RPPG
             self.mode_start_time = time.time()
             self.log("Switching to rPPG monitoring")
