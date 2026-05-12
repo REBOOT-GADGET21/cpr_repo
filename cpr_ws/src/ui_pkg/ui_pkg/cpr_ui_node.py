@@ -378,6 +378,7 @@ class MonitorPage(QWidget):
         self.dynamic_layout.addWidget(self.lbl_line4)
         self.dynamic_layout.addWidget(self.lbl_line5)
         self.dynamic_layout.addWidget(self.graph)
+        self.set_panel_stretch(graph_visible=False)
         self.dynamic_frame.setLayout(self.dynamic_layout)
 
         center_layout.addWidget(self.camera_box, 3)
@@ -426,7 +427,7 @@ class MonitorPage(QWidget):
         """2분 EAR → 30초 rPPG → 반복."""
         elapsed = time.time() - self.mode_start_time
 
-        if self.current_mode == MODE_EAR and elapsed >= 120.0:
+        if self.current_mode == MODE_EAR and elapsed >= 3.0:
             self.current_mode = MODE_RPPG
             self.mode_start_time = time.time()
             self.log("Switching to rPPG monitoring")
@@ -479,6 +480,7 @@ class MonitorPage(QWidget):
     def update_ear_panel(self):
         n = self.ros_node
         remain = max(0, 120 - int(time.time() - self.mode_start_time))
+        self.set_compact_dynamic_text(False)
 
         self.lbl_mode.setText(f"EAR MONITORING  |  남은 시간 {remain}s")
         self.lbl_line1.setText(f"EAR 값: {n.ear:.3f}")
@@ -487,6 +489,7 @@ class MonitorPage(QWidget):
         self.lbl_line4.setText(f"움직임 점수: {n.motion_score:.3f}")
         self.lbl_line5.setText(f"최종 반응: {n.final_response}")
 
+        self.set_graph_visible(False)
         if self.curve is not None:
             self.curve.setData([])
 
@@ -494,6 +497,7 @@ class MonitorPage(QWidget):
         n = self.ros_node
         remain = max(0, 30 - int(time.time() - self.mode_start_time))
         quality = "GOOD" if n.rppg_quality_ok else "BAD / WAIT"
+        self.set_compact_dynamic_text(True)
 
         self.lbl_mode.setText(f"rPPG MONITORING  |  남은 시간 {remain}s")
         self.lbl_line1.setText(f"BPM: {n.rppg_bpm:.1f}")
@@ -503,8 +507,29 @@ class MonitorPage(QWidget):
         self.lbl_line5.setText(f"FPS: {n.rppg_fps:.1f} / Seq: {n.rppg_seq}")
 
         if self.curve is not None:
+            self.set_graph_visible(True)
             y = list(n.rppg_wave_samples)
             self.curve.setData(y)
+        else:
+            self.set_graph_visible(True)
+
+    def set_graph_visible(self, visible):
+        self.graph.setVisible(visible)
+        self.set_panel_stretch(graph_visible=visible)
+
+    def set_panel_stretch(self, graph_visible):
+        self.dynamic_layout.setStretch(0, 1)
+        for i in range(1, 6):
+            self.dynamic_layout.setStretch(i, 1)
+        self.dynamic_layout.setStretch(6, 4 if graph_visible else 0)
+
+    def set_compact_dynamic_text(self, compact):
+        title_font = QFont("Arial", 20 if compact else 24, QFont.Bold)
+        line_font = QFont("Arial", 13 if compact else 16, QFont.Bold)
+        self.lbl_mode.setFont(title_font)
+        for label in (self.lbl_line1, self.lbl_line2, self.lbl_line3, self.lbl_line4, self.lbl_line5):
+            label.setFont(line_font)
+            label.setMinimumHeight(28 if compact else 40)
 
 
 class MainWindow(QMainWindow):
