@@ -260,9 +260,9 @@ class ConsciousnessDetectorNode(Node):
             self.motion_start_time = None
             self.motion_score_ema  = 0.0
 
-        cv2.imshow(WINDOW_NAME, image)
-        if cv2.waitKey(1) & 0xFF == 27:
-            self.destroy_node()
+        # cv2.imshow(WINDOW_NAME, image)
+        # if cv2.waitKey(1) & 0xFF == 27:
+        #     self.destroy_node()
 
     def destroy_node(self):
         self.cap.release()
