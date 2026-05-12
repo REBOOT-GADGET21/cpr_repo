@@ -92,6 +92,11 @@ def read_current_a(motor):
     return read_i16(motor, cfg.ADDR_P0B_24) * cfg.CURRENT_SCALE
 
 
+# def read_bus_voltage(motor):
+#     """P0B-26 DC bus voltage 읽기"""
+#     return read_u16(motor, cfg.ADDR_P0B_26)
+
+
 def is_position_in_limit(pos):
     return cfg.MIN_POSITION_CMD <= int(pos) <= cfg.MAX_POSITION_CMD
 
@@ -139,6 +144,7 @@ def check_status(motor, title="상태 확인"):
     current_a = read_current_a(motor)
     speed     = read_i16(motor, cfg.ADDR_P0B_00)
     fault     = read_u16(motor, cfg.ADDR_P02_34)
+    # bus_v     = read_bus_voltage(motor)
 
     print(
         f"[STATUS] {title} | "
@@ -294,11 +300,11 @@ def move_absolute_position(motor, target_pos):
     check_position_safety(target_pos, "target_pos")
 
     write_i32(motor, cfg.ADDR_P10_14, int(target_pos))
-    time.sleep(0.005)
+    time.sleep(0.001)
     write_u16(motor, cfg.ADDR_P0D_08, 0)
-    time.sleep(0.005)
+    time.sleep(0.001)
     write_u16(motor, cfg.ADDR_P0D_08, 7)
-    time.sleep(0.005)
+    time.sleep(0.001)
 
 
 # ============================================================
@@ -342,21 +348,37 @@ def print_motion_status(
     current_a,
     speed_rpm,
     reached=False,
-    cpr_start_time=None
+    cpr_start_time=None,
+    instant_bpm=None,
+    avg_bpm=None,
+    cycle_dt=None,
 ):
-    """왕복 운동 중 핵심 상태 출력"""
-    status  = "REACHED" if reached else "MOVING"
-    elapsed = (
-        format_elapsed_time(time.time() - cpr_start_time)
-        if cpr_start_time is not None
-        else "00:00"
-    )
+    """모터 상태 출력. BPM 값은 motor_main.py에서 계산해 전달한다."""
+    status = "REACHED" if reached else "MOVING"
+
+    if cpr_start_time is not None:
+        elapsed_sec = time.time() - cpr_start_time
+        elapsed = format_elapsed_time(elapsed_sec)
+    else:
+        elapsed = "00:00"
+
+    bpm_str = ""
+    if instant_bpm is not None:
+        bpm_error = instant_bpm - cfg.TARGET_BPM
+        bpm_str += f"bpm={instant_bpm:.1f}({bpm_error:+.1f}) | "
+    if avg_bpm is not None:
+        bpm_str += f"avg={avg_bpm:.1f} | "
+    if cycle_dt is not None:
+        bpm_str += f"dt={cycle_dt:.3f}s | "
 
     print(
         f"[CPR {elapsed}] "
-        f"{direction} | "
-        f"target={target_pos} | pos={current_pos} | error={error} | "
-        f"current={current_a:.3f}A | speed={speed_rpm}rpm | {status}"
+        f"count={cycle} | "
+        f"{bpm_str}"
+        f"target={target_pos} | "
+        f"pos={current_pos} | "
+        f"error={error} | "
+        f"current={current_a:.3f}A | "
     )
 
 
@@ -387,7 +409,7 @@ def wait_until_position_reached(
 
     while True:
         if ros is not None and ros.should_stop():
-            emergency_stop(motor)
+            print("[USER STOP] 위치 이동 중 사용자 정지 요청 감지")
             return False
 
         check_fault(motor)
@@ -432,4 +454,4 @@ def wait_until_position_reached(
             )
             return False
 
-        time.sleep(0.02)
+        time.sleep(0.005)
