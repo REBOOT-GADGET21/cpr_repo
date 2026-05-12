@@ -15,7 +15,9 @@ from collections import deque
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import String, Float32
+from sensor_msgs.msg import Image
 
 from config import *
 from functions import *
@@ -36,6 +38,13 @@ class ConsciousnessDetectorNode(Node):
         self.pub_closed_time  = self.create_publisher(Float32, 'Response/closed_duration',10)  # 눈 감은 시간
         self.pub_motion_score = self.create_publisher(Float32, 'Response/motion_score',   10)  # 고개 움직임 EMA 값
         self.pub_final        = self.create_publisher(String,  'Response/final_response', 10)  # RESPONSE / NO_RESPONSE
+        image_qos = QoSProfile(
+            history=HistoryPolicy.KEEP_LAST,
+            depth=1,
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+        )
+        # UI에 영상을 보냄
+        self.pub_frame        = self.create_publisher(Image, '/ear/frame', image_qos)  # UI 표시용 주석 포함 EAR 영상
 
         # -------------------------
         # 카메라 초기화
@@ -260,9 +269,23 @@ class ConsciousnessDetectorNode(Node):
             self.motion_start_time = None
             self.motion_score_ema  = 0.0
 
+        # EAR 화면 표시/ UI에 대신 뜨도록 해서 주석처리
         # cv2.imshow(WINDOW_NAME, image)
         # if cv2.waitKey(1) & 0xFF == 27:
         #     self.destroy_node()
+        self.pub_frame.publish(self.make_image_msg(image))
+
+    def make_image_msg(self, image):
+        msg = Image()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = "ear_camera"
+        msg.height = image.shape[0]
+        msg.width = image.shape[1]
+        msg.encoding = "bgr8"
+        msg.is_bigendian = False
+        msg.step = image.strides[0]
+        msg.data = image.tobytes()
+        return msg
 
     def destroy_node(self):
         self.cap.release()

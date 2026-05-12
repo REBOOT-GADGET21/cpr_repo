@@ -4,6 +4,7 @@ from collections import deque
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 
 from std_msgs.msg import String, Float32, Int32, Bool
 from sensor_msgs.msg import Image
@@ -22,7 +23,7 @@ from PyQt5.QtWidgets import (
     QFrame,
     QTextEdit,
 )
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QImage, QPixmap
 
 try:
     import pyqtgraph as pg
@@ -124,9 +125,15 @@ class CPRUINode(Node):
         # wave chunk도 문자열 "0.1,0.2,0.3" 형태로 받는 단순 설계
         self.create_subscription(String, "/rppg/wave_chunk", self.cb_rppg_wave_chunk, 10)
 
-        # 영상은 나중에 rPPG/EAR 쪽에서 Image publish하면 연결 가능
+        # UI화면에는 EAR 영상만 뜸
+        image_qos = QoSProfile(
+            history=HistoryPolicy.KEEP_LAST,
+            depth=1,
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+        )
         self.latest_frame_msg = None
-        self.create_subscription(Image, "/rppg/frame", self.cb_rppg_frame, 10)
+        self.latest_ear_qimage = None
+        self.create_subscription(Image, "/ear/frame", self.cb_ear_frame, image_qos)
 
     # ==============================
     # UI 명령 publish
@@ -242,9 +249,25 @@ class CPRUINode(Node):
                 self.rppg_wave_samples.append(sample)
         except Exception:
             pass
-
-    def cb_rppg_frame(self, msg):
+    # Qimage로 변환하여 UI에 표시
+    def cb_ear_frame(self, msg):
         self.latest_frame_msg = msg
+        self.latest_ear_qimage = self.ros_image_to_qimage(msg)
+
+    @staticmethod
+    def ros_image_to_qimage(msg):
+        if msg.encoding == "bgr8":
+            image_format = getattr(QImage, "Format_BGR888", None)
+            if image_format is not None:
+                return QImage(bytes(msg.data), msg.width, msg.height, msg.step, image_format).copy()
+
+            qimage = QImage(bytes(msg.data), msg.width, msg.height, msg.step, QImage.Format_RGB888)
+            return qimage.rgbSwapped().copy()
+
+        if msg.encoding == "rgb8":
+            return QImage(bytes(msg.data), msg.width, msg.height, msg.step, QImage.Format_RGB888).copy()
+
+        return None
 
 
 class StartPage(QWidget):
@@ -319,7 +342,7 @@ class MonitorPage(QWidget):
         # -------------------------
         center_layout = QHBoxLayout()
 
-        self.camera_box = QLabel("Camera View\n/rppg/frame 연결 전")
+        self.camera_box = QLabel("Camera View\n/ear/frame 연결 전")
         self.camera_box.setAlignment(Qt.AlignCenter)
         self.camera_box.setMinimumSize(640, 420)
         self.camera_box.setStyleSheet("background-color: #111; color: white; border: 2px solid #444;")
@@ -414,7 +437,7 @@ class MonitorPage(QWidget):
     def update_ui(self):
         self.update_mode_by_cycle()
         self.update_cpr_status()
-        self.update_camera_placeholder()
+        self.update_camera_view()
 
         if self.current_mode == MODE_EAR:
             self.update_ear_panel()
@@ -439,15 +462,19 @@ class MonitorPage(QWidget):
         recoil_text = "WARNING" if n.loadcell_warning else "GOOD"
         self.lbl_recoil.setText(f"최대 이완/편심: {recoil_text}")
 
-    def update_camera_placeholder(self):
+    def update_camera_view(self):
         n = self.ros_node
-        bbox = n.rppg_bbox
-        face = "DETECTED" if n.rppg_face_detected else "NO FACE"
-        self.camera_box.setText(
-            f"Camera View\n"
-            f"/rppg/frame 수신 준비\n\n"
-            f"Face: {face}\n"
-            f"BBox: x={bbox[0]}, y={bbox[1]}, w={bbox[2]}, h={bbox[3]}"
+        if n.latest_ear_qimage is None:
+            self.camera_box.setText("Camera View\n/ear/frame 연결 전")
+            return
+
+        pixmap = QPixmap.fromImage(n.latest_ear_qimage)
+        self.camera_box.setPixmap(
+            pixmap.scaled(
+                self.camera_box.size(),
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation,
+            )
         )
 
     def update_ear_panel(self):
