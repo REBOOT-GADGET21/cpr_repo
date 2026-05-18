@@ -427,7 +427,7 @@ class MonitorPage(QWidget):
         """2분 EAR → 30초 rPPG → 반복."""
         elapsed = time.time() - self.mode_start_time
 
-        if self.current_mode == MODE_EAR and elapsed >= 120.0:
+        if self.current_mode == MODE_EAR and elapsed >= 30.0:
             self.current_mode = MODE_RPPG
             self.mode_start_time = time.time()
             self.log("Switching to rPPG monitoring")
@@ -479,7 +479,7 @@ class MonitorPage(QWidget):
 
     def update_ear_panel(self):
         n = self.ros_node
-        remain = max(0, 120 - int(time.time() - self.mode_start_time))
+        remain = max(0, 30 - int(time.time() - self.mode_start_time))
         self.set_compact_dynamic_text(False)
 
         self.lbl_mode.setText(f"EAR MONITORING  |  남은 시간 {remain}s")

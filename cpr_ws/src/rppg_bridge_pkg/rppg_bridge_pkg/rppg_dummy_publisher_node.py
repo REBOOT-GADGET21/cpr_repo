@@ -21,15 +21,19 @@ class RppgDummyPublisherNode(Node):
 
         self.declare_parameter("bpm", 74.0)
         self.declare_parameter("sample_rate", 30.0)
-        self.declare_parameter("chunk_size", 3)
+        self.declare_parameter("chunk_size", 1)
         self.declare_parameter("amplitude", 1.0)
         self.declare_parameter("timer_period", 0.1)
+        self.declare_parameter("graph_points_per_cycle", 100.0)
 
         self.bpm = float(self.get_parameter("bpm").value)
         self.sample_rate = float(self.get_parameter("sample_rate").value)
         self.chunk_size = int(self.get_parameter("chunk_size").value)
         self.amplitude = float(self.get_parameter("amplitude").value)
         timer_period = float(self.get_parameter("timer_period").value)
+        self.graph_points_per_cycle = float(
+            self.get_parameter("graph_points_per_cycle").value
+        )
 
         self.seq = 0
         self.sample_index = 0
@@ -66,15 +70,8 @@ class RppgDummyPublisherNode(Node):
         self.publish_string(self.wave_pub, ",".join(f"{sample:.5f}" for sample in samples))
 
     def make_wave_sample(self):
-        t = self.sample_index / self.sample_rate
-        heart_hz = self.bpm / 60.0
-        phase = 2.0 * math.pi * heart_hz * t
-
-        sample = (
-            math.sin(phase)
-            + 0.22 * math.sin(2.0 * phase + 0.8)
-            + 0.04 * math.sin(2.0 * math.pi * 0.18 * t)
-        )
+        phase = 2.0 * math.pi * self.sample_index / max(1.0, self.graph_points_per_cycle)
+        sample = math.sin(phase)
         self.sample_index += 1
         return self.amplitude * sample
 
