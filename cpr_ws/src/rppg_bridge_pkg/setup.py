@@ -25,8 +25,6 @@ setup(
     entry_points={
         'console_scripts': [
             'rppg_udp_bridge = rppg_bridge_pkg.rppg_udp_bridge_node:main',
-            # 가짜 코드 실행을 위한 노드 추가
-            'rppg_dummy_publisher = rppg_bridge_pkg.rppg_dummy_publisher_node:main',
         ],
     },
 )
