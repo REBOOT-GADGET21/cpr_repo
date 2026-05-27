@@ -15,7 +15,7 @@ SEARCH_RPM = 200
 RECIP_RPM = 3000 #[rpm]
 
 # 접촉 힘 기준
-CONTACT_FORCE_N = 3.0
+CONTACT_FORCE_N = 4.5
 
 # 전류 제한
 MAX_CURRENT_A = 130.0 #[A]
@@ -111,7 +111,7 @@ MOVE_TO_INITIAL_ON_START = True
 
 # 초기 위치 (P0B-07 / P10-14 기준 지령단위)
 # 전원 재연결 후 복귀할 위쪽 안전 초기 위치
-INITIAL_POS = -3584
+INITIAL_POS = -1578
 
 # 가감속
 # * 4  → 목표 속도까지 약 0.25초
@@ -144,8 +144,8 @@ MAX_COMPRESSION_DEPTH_CM = 5.0
 # ============================================================
 
 # 위치 제한 (물리 범위보다 반드시 좁게 설정)
-MIN_POSITION_CMD = -200000
-MAX_POSITION_CMD =  200000
+MIN_POSITION_CMD = -300000
+MAX_POSITION_CMD =  300000
 
 # # 전류 제한
 # MAX_CURRENT_A = 50.0
