@@ -41,7 +41,6 @@ def return_to_initial_and_shutdown(motor, ros=None, reason="USER_STOP"):
     if ros is not None:
         try:
             ros.publish_state("RETURNING_INITIAL")
-            ros.publish_target_position(cfg.INITIAL_POS)
         except Exception as e:
             print(f"[WARN] ROS publish 실패: {e}")
 
@@ -120,7 +119,6 @@ def move_to_initial_position(motor, ros):
     drv.servo_on_by_forced_di(motor)
     drv.check_status(motor, "초기 위치 이동 전 상태")
 
-    ros.publish_target_position(cfg.INITIAL_POS)
     drv.move_absolute_position(motor, cfg.INITIAL_POS)
 
     ok = drv.wait_until_position_reached(motor,cfg.INITIAL_POS,ros=ros)
@@ -136,26 +134,111 @@ def move_to_initial_position(motor, ros):
     time.sleep(0.5)
 
 
+# # ============================================================
+# # 2단계: 접촉 위치 탐색
+# # ============================================================
+
+# def search_until_loadcell_contact(motor, ros):
+#     print("\n=== 2단계: 정회전 탐색 시작 ===")
+#     print(f"[GUIDE] /loadcell_total >= {CONTACT_FORCE_N:.1f}N 이면 현재 위치를 접촉 위치로 저장합니다.")
+#     print("[GUIDE] /motor_stop=True 또는 /loadcell_stop_request=True 이면 초기 위치 복귀 후 종료합니다.")
+
+#     ros.publish_state("SEARCHING")
+
+#     start_pos = drv.read_current_position(motor)
+#     print(f"[SEARCH] 탐색 시작 위치 = {start_pos}")
+#     ros.publish_absolute_position(start_pos)
+
+#     drv.start_forward_speed_run(motor)
+
+#     while True:
+#         if ros.should_stop():
+#             raise UserStopRequested("[STOP] 탐색 중 사용자 정지 요청")
+
+#         drv.check_fault(motor)
+#         drv.check_current_safety(motor)
+
+#         current_pos = drv.read_current_position(motor)
+#         current_a = drv.read_current_a(motor)
+
+#         drv.check_position_safety(current_pos, "search current_pos")
+
+#         ros.publish_absolute_position(current_pos)
+#         ros.publish_current_a(current_a)
+
+#         # 기존 Enter 역할
+#         if ros.loadcell_total >= CONTACT_FORCE_N:
+#             captured_pos = drv.read_current_position(motor)
+
+#             print(
+#                 f"[CONTACT] loadcell_total={ros.loadcell_total:.1f}N | "
+#                 f"저장 위치 = {captured_pos}"
+#             )
+
+#             ros.publish_state("CONTACT_DETECTED")
+
+#             drv.stop_motion(motor)
+#             time.sleep(0.3)
+
+#             return int(captured_pos)
+
+#         time.sleep(0.001)
+
+# ============================================================
+# Enter / q 입력 함수
+# ============================================================
+
+def wait_enter_or_q_for_capture():
+    """
+    Enter 입력: 현재 위치 캡처
+    q 입력 후 Enter: 정지
+    """
+    text = input().strip().lower()
+
+    if text == "q":
+        return "STOP"
+
+    return "CAPTURE"
+
+
 # ============================================================
 # 2단계: 접촉 위치 탐색
 # ============================================================
 
-def search_until_loadcell_contact(motor, ros):
+def search_until_enter_and_capture_position(motor, ros):
     print("\n=== 2단계: 정회전 탐색 시작 ===")
-    print(f"[GUIDE] /loadcell_total >= {CONTACT_FORCE_N:.1f}N 이면 현재 위치를 접촉 위치로 저장합니다.")
-    print("[GUIDE] /motor_stop=True 또는 /loadcell_stop_request=True 이면 초기 위치 복귀 후 종료합니다.")
+    print("[GUIDE] Enter를 누르면 현재 위치를 접촉 위치로 저장합니다.")
+    print("[GUIDE] q 입력 후 Enter를 누르면 초기 위치 복귀 후 종료합니다.")
 
     ros.publish_state("SEARCHING")
 
     start_pos = drv.read_current_position(motor)
     print(f"[SEARCH] 탐색 시작 위치 = {start_pos}")
+
     ros.publish_absolute_position(start_pos)
 
     drv.start_forward_speed_run(motor)
 
     while True:
-        if ros.should_stop():
-            raise UserStopRequested("[STOP] 탐색 중 사용자 정지 요청")
+        action = wait_enter_or_q_for_capture()
+
+        if action == "STOP":
+            drv.stop_motion(motor)
+            time.sleep(0.3)
+            raise UserStopRequested("[STOP] 탐색 중 q 입력으로 중단")
+
+        if action == "CAPTURE":
+            captured_pos = drv.read_current_position(motor)
+            print(f"[CAPTURE] Enter 입력 위치 = {captured_pos}")
+
+            ros.publish_state("CONTACT_DETECTED")
+            # ros.publish_contact_position(captured_pos)
+            ros.publish_absolute_position(captured_pos)
+
+            drv.stop_motion(motor)
+            time.sleep(0.3)
+
+            return int(captured_pos)
 
         drv.check_fault(motor)
         drv.check_current_safety(motor)
@@ -168,25 +251,7 @@ def search_until_loadcell_contact(motor, ros):
         ros.publish_absolute_position(current_pos)
         ros.publish_current_a(current_a)
 
-        # 기존 Enter 역할
-        if ros.loadcell_total >= CONTACT_FORCE_N:
-            captured_pos = drv.read_current_position(motor)
-
-            print(
-                f"[CONTACT] loadcell_total={ros.loadcell_total:.1f}N | "
-                f"저장 위치 = {captured_pos}"
-            )
-
-            ros.publish_state("CONTACT_DETECTED")
-            ros.publish_contact_position(captured_pos)
-
-            drv.stop_motion(motor)
-            time.sleep(0.3)
-
-            return int(captured_pos)
-
-        time.sleep(0.005)
-
+        time.sleep(0.05)
 
 # ============================================================
 # 3단계: 왕복 운동
@@ -199,66 +264,156 @@ def reciprocating_motion(motor, ros, start_pos, end_pos, depth_cm):
     print(f"[RECIP] END_POS   = {end_pos}")
     print(f"[RECIP] 반복 횟수 = {cfg.REPEAT_COUNT}")
     print(f"[RECIP] 왕복 속도 = {cfg.RECIP_RPM} rpm")
+    print(f"[RECIP] 위치 도달 허용 오차 = {cfg.POSITION_TOLERANCE} unit")
 
-    ros.publish_state("RECIPROCATING")
+    ros.publish_state("Compressing")
 
     drv.check_position_safety(start_pos, "recip start_pos")
-    drv.check_position_safety(end_pos,   "recip end_pos")
+    drv.check_position_safety(end_pos, "recip end_pos")
 
-    cpr_start_time = time.time()
+    # cpr_start_time = time.time()
+    ros.reset_compression_status()
+    cpr_start_time = ros.cpr_start_time
 
-    ros.cpr_start_time = cpr_start_time
-    ros.compression_count = 0
-    ros.compression_bpm = 0.0
-    ros.last_compression_time = None
+    # 왕복 루프 주기, 값이 너무 크면 방향 전환이 늦어져 bpm이 떨어짐
+    LOOP_SLEEP_S = 0.001
 
-    for i in range(cfg.REPEAT_COUNT):
-        print(f"\n========== 왕복 {i + 1}/{cfg.REPEAT_COUNT} ==========")
+    # 안전검사는 loop_count 기준이 아니라 시간 기준으로 수행
+    SAFETY_CHECK_PERIOD_S = 0.5
+    last_safety_check_time = time.time()
+
+    # 전류는 매 루프마다 읽지 않고 1초마다만 갱신
+    CURRENT_READ_PERIOD_S = 1.0
+    last_current_read_time = 0.0
+    current_a = 0.0
+
+    # 처음에는 압박 방향, 즉 end_pos 방향으로 이동
+    target_pos = end_pos
+    direction = "FORWARD"
+
+    # 압박 1회 동안의 최대 깊이
+    max_depth_cm_in_cycle = 0.0
+
+    # 첫 번째 왕복 로그 출력
+    print(f"\n========== 왕복 {ros.compression_count + 1}/{cfg.REPEAT_COUNT} ==========")
+
+    drv.move_absolute_position(motor, target_pos)
+
+    forward_start_time = time.time()
+
+    loop_count = 0
+
+    while ros.compression_count < cfg.REPEAT_COUNT:
+        loop_count += 1
 
         if ros.should_stop():
             raise UserStopRequested("[STOP] 왕복 운동 중 사용자 정지 요청")
 
-        print(f"\n[RECIP {i + 1}] BACKWARD 시작")
-        ros.publish_target_position(start_pos)
-        drv.move_absolute_position(motor, start_pos)
+        now_loop = time.time()
 
-        ok = drv.wait_until_position_reached(
-            motor, start_pos,
-            cycle=i + 1, direction="BACKWARD",
-            speed_rpm=cfg.RECIP_RPM, cpr_start_time=cpr_start_time,
-            ros=ros
-        )
+        # 안전 검사 0.2초 마다
+        if now_loop - last_safety_check_time >= SAFETY_CHECK_PERIOD_S:
+            drv.check_fault(motor)
+            drv.check_current_safety(motor)
+            last_safety_check_time = now_loop
 
-        if not ok:
-            if ros.should_stop():
-                raise UserStopRequested("[STOP] BACKWARD 이동 중 사용자 정지 요청")
-            break
+        current_pos = drv.read_current_position(motor)
 
-        time.sleep(0.001)
+        drv.check_position_safety(current_pos, "recip current_pos")
 
-        if ros.should_stop():
-            raise UserStopRequested("[STOP] 왕복 운동 중 사용자 정지 요청")
+        ros.publish_absolute_position(current_pos)
 
-        print(f"\n[RECIP {i + 1}] FORWARD 시작")
-        ros.publish_target_position(end_pos)
-        drv.move_absolute_position(motor, end_pos)
+        # 현재 깊이는 계산만 하고, 토픽으로 실시간 발행하지 않음
+        depth_now_cm = position_units_to_cm(abs(current_pos - start_pos))
 
-        ok = drv.wait_until_position_reached(
-            motor, end_pos,
-            cycle=i + 1, direction="FORWARD",
-            speed_rpm=cfg.RECIP_RPM, cpr_start_time=cpr_start_time,
-            ros=ros
-        )
+        # 압박 방향에서만 이번 압박의 최대 깊이 저장
+        if direction == "FORWARD":
+            if depth_now_cm > max_depth_cm_in_cycle:
+                max_depth_cm_in_cycle = depth_now_cm
 
-        if not ok:
-            if ros.should_stop():
-                raise UserStopRequested("[STOP] FORWARD 이동 중 사용자 정지 요청")
-            break
+        error = abs(target_pos - current_pos)
 
-        # 왕복 1회 = 압박 1회
-        ros.update_compression_count()
+        # FORWARD 방향에서만 BPM 안정화 시간 제한 적용
+        forward_elapsed = now_loop - forward_start_time if direction == "FORWARD" else 0.0
 
-        time.sleep(0.001)
+        # 목표 위치 근처에 들어오거나, FORWARD 시간이 너무 길어지면 압박 완료 처리
+        if error <= cfg.POSITION_TOLERANCE or (
+            direction == "FORWARD" and forward_elapsed >= cfg.MAX_ALLOWED_CYCLE_DT
+        ):
+
+            if direction == "FORWARD":
+                # 압박 끝 지점에 도달한 것으로 보고 압박 1회 카운트
+                now = time.time()
+
+                prev_time = ros.last_compression_time
+                next_count = ros.compression_count + 1
+
+                if prev_time is None:
+                    cycle_dt = 0.0
+                    instant_bpm = 0.0
+                else:
+                    cycle_dt = now - prev_time
+                    instant_bpm = 60.0 / cycle_dt if cycle_dt > 0 else 0.0
+
+                elapsed = now - cpr_start_time
+                avg_bpm = next_count * 60.0 / elapsed if elapsed > 0 else 0.0
+
+                depth_now_cm = position_units_to_cm(abs(current_pos - start_pos))
+
+                ros.update_compression_count(
+                    bpm=avg_bpm,
+                    depth_cm=max_depth_cm_in_cycle
+                )
+
+                if now - last_current_read_time >= CURRENT_READ_PERIOD_S:
+                    try:
+                        current_a = drv.read_current_a(motor)
+                    except Exception as e:
+                        print(f"[WARN] current read failed: {e}")
+                    last_current_read_time = now
+
+                drv.print_motion_status(
+                    cycle=ros.compression_count,
+                    direction=direction,
+                    target_pos=target_pos,
+                    current_pos=current_pos,
+                    error=error,
+                    current_a=current_a,
+                    speed_rpm=cfg.RECIP_RPM,
+                    reached=True,
+                    cpr_start_time=cpr_start_time,
+                    instant_bpm=instant_bpm,            # 실제 왕복 시간
+                    avg_bpm=avg_bpm,                    # 평균 bpm
+                    cycle_dt=cycle_dt,                  # 압박 1회 시간
+                )
+
+
+                # 목표 횟수 완료 시 종료
+                if ros.compression_count >= cfg.REPEAT_COUNT:
+                    break
+
+                # 복귀 방향으로 전환
+                target_pos = start_pos
+                direction = "BACKWARD"
+
+                drv.move_absolute_position(motor, target_pos)
+
+            else:
+                # 복귀 완료 후 다음 압박 사이클 시작
+                next_cycle = ros.compression_count + 1
+
+                target_pos = end_pos
+                direction = "FORWARD"
+
+                max_depth_cm_in_cycle = 0.0
+
+                print(f"\n========== 왕복 {next_cycle}/{cfg.REPEAT_COUNT} ==========")
+
+                drv.move_absolute_position(motor, target_pos)
+
+                forward_start_time = time.time()
+
+        time.sleep(LOOP_SLEEP_S)
 
     print("\n=== 왕복 운동 종료 ===")
 
@@ -294,6 +449,11 @@ def get_travel_units():
 
         return depth_cm, travel_mm, travel_units
 
+def position_units_to_cm(position_units):
+    motor_rev = position_units / cfg.COMMAND_UNITS_PER_MOTOR_REV
+    screw_rev = motor_rev / cfg.GEAR_MOTOR_REV_PER_SCREW_REV
+    travel_mm = screw_rev * cfg.SCREW_LEAD_MM_PER_REV
+    return travel_mm / 10.0
 
 # ============================================================
 # 전체 실행 순서
@@ -346,7 +506,8 @@ def run_sequence(motor, ros):
     drv.servo_on_by_forced_di(motor)
     drv.check_status(motor, "PV 탐색 Servo ON 후 상태")
 
-    contact_pos = search_until_loadcell_contact(motor, ros)
+    # contact_pos = search_until_loadcell_contact(motor, ros)
+    contact_pos = search_until_enter_and_capture_position(motor, ros)
 
     drv.servo_off_by_forced_di(motor)
     time.sleep(0.3)
@@ -354,9 +515,6 @@ def run_sequence(motor, ros):
     # --- 3단계: 왕복 위치 계산 및 PP 위치모드 왕복 ---
     start_pos = int(contact_pos)
     end_pos = int(contact_pos + travel_units)
-
-    ros.publish_contact_position(contact_pos)
-    ros.publish_target_position(end_pos)
 
     print(f"\n=== 3단계 준비: {depth_cm:.1f} cm 왕복 위치 계산 ===")
     print(f"[CONTACT_POS]  {contact_pos}")
@@ -417,7 +575,7 @@ def main():
 
     except KeyboardInterrupt:
         print("\n[KEYBOARD INTERRUPT] 사용자 Ctrl+C 중단")
-        return_to_initial_and_shutdown(motor, None, reason="KeyboardInterrupt")
+        drv.safe_stop(motor)
 
     except UserStopRequested as e:
         print("\n[USER STOP]", e)
