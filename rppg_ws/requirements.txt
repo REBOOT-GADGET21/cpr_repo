@@ -1,20 +1,20 @@
 # h5py==2.10.0
 yacs==0.1.8
-scipy==1.5.2
+scipy==1.11.4
 # pandas==1.1.5
 # scikit_image==0.17.2
-numpy==1.22.0
+numpy==1.26.1
 matplotlib==3.1.2
-opencv_python==4.5.2.54
-PyYAML==6.0
+opencv_python==4.8.1.78
+PyYAML==6.0.1
 # scikit_learn==1.0.2
-tensorboardX==2.4.1
-tqdm==4.64.0
+# tensorboardX==2.4.1
+tqdm==4.66.4
 # mat73==0.59
 # ipykernel==6.26.0
 # ipywidgets==8.1.1
 # fsspec==2024.10.0
-timm==1.0.11
+timm==0.9.16
 # causal-conv1d==1.0.0
 # protobuf==3.20.3
 # neurokit2==0.2.10
